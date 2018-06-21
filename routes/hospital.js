@@ -1,44 +1,45 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
-
 var mdAuth = require('../middlewares/autentication');
 
 var app = express();
 
-var User = require('../models/user');
+var Hospital = require('../models/hospital');
 
 //====================================================
-// Get All Users
+// Get All Hospitals
 //====================================================
 app.get('/', (request, response, next) => {
 
     var from = request.query.from || 0;
     from = Number(from);
 
-    User.find({}, 'name email img role')
+    Hospital.find({})
         .skip(from)
         .limit(5)
+        .populate('user', 'name email')
         .exec(
-            (error, users) => {
+            (error, hospitals) => {
 
                 if (error) {
                     return response.status(500).json({
                         ok: false,
-                        messaje: 'Loading users error...',
+                        messaje: 'Loading hospitals error...',
                         errors: error
                     });
                 }
 
-                User.count({}, (error, count) => {
+
+                Hospital.count({}, (error, count) => {
 
                     response.status(200).json({
                         ok: true,
-                        users: users,
+                        hospitals: hospitals,
                         total: count
                     });
 
                 });
+
+
 
             });
 
@@ -47,41 +48,40 @@ app.get('/', (request, response, next) => {
 
 
 //====================================================
-// Update User
+// Update Hospitals
 //====================================================
 app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 
     var id = request.params.id;
     var body = request.body;
 
-    User.findById(id, (error, user) => {
+    Hospital.findById(id, (error, hospital) => {
 
         if (error) {
             return response.status(500).json({
                 ok: false,
-                messaje: 'User not found...',
+                messaje: 'Hospital not found...',
                 errors: error
             });
         }
 
-        if (!user) {
+        if (!hospital) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'User with id:' + id + 'not found...',
+                messaje: 'Hospital with id:' + id + 'not found...',
             });
         }
 
 
-        user.name = body.name;
-        user.email = body.email;
-        user.role = body.role;
+        hospital.name = body.name;
+        hospital.user = request.user._id;
 
-        user.save((error, savedUser) => {
+        hospital.save((error, savedHospital) => {
             if (error) {
 
                 return response.status(400).json({
                     ok: false,
-                    messaje: 'Update user error...',
+                    messaje: 'Update hospital error...',
                     errors: error
                 });
 
@@ -89,7 +89,7 @@ app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 
             response.status(200).json({
                 ok: true,
-                user: savedUser
+                hospital: savedHospital
             });
         });
 
@@ -98,33 +98,30 @@ app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 });
 
 //====================================================
-// Create User
+// Create Hospital
 //====================================================
 app.post('/', mdAuth.tokenVerify, (request, response) => {
 
     var body = request.body;
 
-    var user = new User({
+    var hospital = new Hospital({
         name: body.name,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role
+        user: request.user._id
     });
 
-    user.save((error, saveUser) => {
+    hospital.save((error, saveHospital) => {
 
         if (error) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'Saving user error...',
+                messaje: 'Saving hospital error...',
                 errors: error
             });
         }
 
         response.status(201).json({
             ok: true,
-            user: saveUser
+            hospital: saveHospital
         });
 
     });
@@ -132,32 +129,32 @@ app.post('/', mdAuth.tokenVerify, (request, response) => {
 });
 
 //====================================================
-// Delete User by id
+// Delete Hospital by id
 //====================================================
 app.delete('/:id', mdAuth.tokenVerify, (request, response) => {
 
     var id = request.params.id;
 
-    User.findByIdAndRemove(id, (error, deleteduser) => {
+    Hospital.findByIdAndRemove(id, (error, deletedHospital) => {
         if (error) {
             return response.status(500).json({
                 ok: false,
-                messaje: 'Deleting user error...',
+                messaje: 'Deleting hospital error...',
                 errors: error
             });
         }
 
-        if (!deleteduser) {
+        if (!deletedHospital) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'User with id:' + id + 'not found',
+                messaje: 'Hospital with id:' + id + 'not found',
                 errors: { message: 'Bad request' }
             });
         }
 
         response.status(200).json({
             ok: true,
-            user: deleteduser
+            hospital: deletedHospital
         });
 
     });

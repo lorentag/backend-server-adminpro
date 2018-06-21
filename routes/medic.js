@@ -1,44 +1,45 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
-
 var mdAuth = require('../middlewares/autentication');
 
 var app = express();
 
-var User = require('../models/user');
+var Medic = require('../models/medic');
 
 //====================================================
-// Get All Users
+// Get All Medics
 //====================================================
 app.get('/', (request, response, next) => {
 
     var from = request.query.from || 0;
     from = Number(from);
 
-    User.find({}, 'name email img role')
+    Medic.find({})
         .skip(from)
         .limit(5)
+        .populate('user', 'name email')
+        .populate('hospital')
         .exec(
-            (error, users) => {
+            (error, medics) => {
 
                 if (error) {
                     return response.status(500).json({
                         ok: false,
-                        messaje: 'Loading users error...',
+                        messaje: 'Loading medics error...',
                         errors: error
                     });
                 }
 
-                User.count({}, (error, count) => {
+
+                Medic.count({}, (error, count) => {
 
                     response.status(200).json({
                         ok: true,
-                        users: users,
+                        medics: medics,
                         total: count
                     });
 
                 });
+
 
             });
 
@@ -47,41 +48,41 @@ app.get('/', (request, response, next) => {
 
 
 //====================================================
-// Update User
+// Update Medics
 //====================================================
 app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 
     var id = request.params.id;
     var body = request.body;
 
-    User.findById(id, (error, user) => {
+    Medic.findById(id, (error, medic) => {
 
         if (error) {
             return response.status(500).json({
                 ok: false,
-                messaje: 'User not found...',
+                messaje: 'Medic not found...',
                 errors: error
             });
         }
 
-        if (!user) {
+        if (!medic) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'User with id:' + id + 'not found...',
+                messaje: 'Medic with id:' + id + 'not found...',
             });
         }
 
 
-        user.name = body.name;
-        user.email = body.email;
-        user.role = body.role;
+        medic.name = body.name;
+        medic.user = request.user._id;
+        medic.hospital = body.hospital;
 
-        user.save((error, savedUser) => {
+        medic.save((error, savedMedic) => {
             if (error) {
 
                 return response.status(400).json({
                     ok: false,
-                    messaje: 'Update user error...',
+                    messaje: 'Update Medic error...',
                     errors: error
                 });
 
@@ -89,7 +90,7 @@ app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 
             response.status(200).json({
                 ok: true,
-                user: savedUser
+                medic: savedMedic
             });
         });
 
@@ -98,33 +99,31 @@ app.put('/:id', mdAuth.tokenVerify, (request, response) => {
 });
 
 //====================================================
-// Create User
+// Create Medic
 //====================================================
 app.post('/', mdAuth.tokenVerify, (request, response) => {
 
     var body = request.body;
 
-    var user = new User({
+    var medic = new Medic({
         name: body.name,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role
+        user: request.user._id,
+        hospital: body.hospital
     });
 
-    user.save((error, saveUser) => {
+    medic.save((error, saveMedic) => {
 
         if (error) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'Saving user error...',
+                messaje: 'Saving Medic error...',
                 errors: error
             });
         }
 
         response.status(201).json({
             ok: true,
-            user: saveUser
+            medic: saveMedic
         });
 
     });
@@ -132,32 +131,32 @@ app.post('/', mdAuth.tokenVerify, (request, response) => {
 });
 
 //====================================================
-// Delete User by id
+// Delete Medic by id
 //====================================================
 app.delete('/:id', mdAuth.tokenVerify, (request, response) => {
 
     var id = request.params.id;
 
-    User.findByIdAndRemove(id, (error, deleteduser) => {
+    Medic.findByIdAndRemove(id, (error, deletedMedic) => {
         if (error) {
             return response.status(500).json({
                 ok: false,
-                messaje: 'Deleting user error...',
+                messaje: 'Deleting Medic error...',
                 errors: error
             });
         }
 
-        if (!deleteduser) {
+        if (!deletedMedic) {
             return response.status(400).json({
                 ok: false,
-                messaje: 'User with id:' + id + 'not found',
+                messaje: 'Medic with id:' + id + 'not found',
                 errors: { message: 'Bad request' }
             });
         }
 
         response.status(200).json({
             ok: true,
-            user: deleteduser
+            Medic: deletedMedic
         });
 
     });
